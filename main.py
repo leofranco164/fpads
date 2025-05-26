@@ -22,6 +22,9 @@ DATA_FILE = "licenses.json"
 class LicenseRequest(BaseModel):
     quantity: int
 
+class ConsumeRequest(BaseModel):
+    code: str
+
 def load_licenses():
     if not os.path.exists(DATA_FILE):
         return []
@@ -67,9 +70,21 @@ def check_license(code: str):
     licenses = load_licenses()
     for lic in licenses:
         if lic["code"] == code:
-            if lic["used"]:
-                return {"valid": False, "reason": "already used"}
-            lic["used"] = True  # contrassegna come usato alla prima attivazione
-            save_licenses(licenses)
-            return {"valid": True, "used": False}
+            return {
+                "valid": not lic["used"],
+                "used": lic["used"],
+                "code": code
+            }
     return {"valid": False, "reason": "not found"}
+
+@app.post("/consume-license")
+def consume_license(req: ConsumeRequest):
+    licenses = load_licenses()
+    for lic in licenses:
+        if lic["code"] == req.code:
+            if lic["used"]:
+                raise HTTPException(status_code=400, detail="Codice già utilizzato")
+            lic["used"] = True
+            save_licenses(licenses)
+            return {"status": "consumed", "code": req.code}
+    raise HTTPException(status_code=404, detail="Codice non trovato")
