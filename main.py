@@ -61,3 +61,15 @@ def generate_licenses(request: LicenseRequest):
 
     save_licenses(existing)
     return {"generated": new_codes}
+
+@app.get("/check-license")
+def check_license(code: str):
+    licenses = load_licenses()
+    for lic in licenses:
+        if lic["code"] == code:
+            if lic["used"]:
+                return {"valid": False, "reason": "already used"}
+            lic["used"] = True  # contrassegna come usato alla prima attivazione
+            save_licenses(licenses)
+            return {"valid": True, "used": False}
+    return {"valid": False, "reason": "not found"}
